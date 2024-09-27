@@ -27,7 +27,7 @@ def convert_image(img):
     return byte_im
 
 # Cartoonify the image
-def cartoonify_image_cv2(img):
+def cartoonify_image_cv2_edges(img):
     # Ensure the image is a numpy array
     if not isinstance(img, np.ndarray):
         img = np.array(img)
@@ -40,30 +40,63 @@ def cartoonify_image_cv2(img):
     
     img_color = cv2.bilateralFilter(img, d=9, sigmaColor=75, sigmaSpace=75)
     img_gray = cv2.cvtColor(img_color, cv2.COLOR_BGR2GRAY)
-    img_edge = cv2.adaptiveThreshold(img_gray, 255, 
-                                     cv2.ADAPTIVE_THRESH_MEAN_C, 
-                                     cv2.THRESH_BINARY, 9, 9)
-    cartoon = cv2.bitwise_and(img_color, img_color, mask=img_edge)
-    return cartoon
+    # img_edge = cv2.adaptiveThreshold(img_gray, 255, 
+    #                                  cv2.ADAPTIVE_THRESH_MEAN_C, 
+    #                                  cv2.THRESH_BINARY, 9, 9)
+    # cartoon = cv2.bitwise_and(img_color, img_color, mask=img_edge)
+
+    #applying median blur to smoothen an image
+    img_blur = cv2.medianBlur(img_gray, 5)
+
+    #retrieving the edges for cartoon effect
+    img_edge = cv2.adaptiveThreshold(img_blur, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 9)
+
+    return img_edge
+
+def cartoonify_image_edges_to_toon(img, img_edge):
+    # Ensure the image is a numpy array
+    if not isinstance(img, np.ndarray):
+        img = np.array(img)
+    
+    # Ensure the image is in the correct format
+    if len(img.shape) == 2:  # Grayscale image
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    elif img.shape[2] == 4:  # Image with alpha channel
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+
+    #applying bilateral filter to remove noise 
+    #and keep edge sharp as required
+    img_filtered = cv2.bilateralFilter(img, 9, 300, 300)
+
+    #masking edged image with our "BEAUTIFY" image
+    img_cartoon = cv2.bitwise_and(img_filtered, img_filtered, mask=img_edge)
+
+    return img_cartoon
 
 def process_image(upload):
     image = Image.open(upload)
-    col1.write("Original Image :camera:")
-    col1.image(image)
+    col_orig.write("Original Image :camera:")
+    col_orig.image(image)
 
     img_no_bg = remove(image)
-    col2.write("Background removed :wrench:")
-    col2.image(img_no_bg)
+    col2_no_bg.write("Background removed :wrench:")
+    col2_no_bg.image(img_no_bg)
     st.sidebar.markdown("\n")
     st.sidebar.download_button("Download fixed image", convert_image(img_no_bg), "img_no_bg.png", "image/png")
 
-    img_cartoon = cartoonify_image_cv2(img_no_bg)
-    col3.write("Cartoonified Image :art:")
-    col3.image(img_cartoon)
+    img_edges = cartoonify_image_cv2_edges(img_no_bg)
+    col_edges.write("Edges :art:")
+    col_edges.image(img_edges)
+    st.sidebar.markdown("\n")
+    st.sidebar.download_button("Download edges image", convert_image(img_edges), "img_edges.png", "image/png")
+
+    img_cartoon = cartoonify_image_edges_to_toon(img_no_bg, img_edges)
+    col_cartoon.write("Cartoonified Image :art:")
+    col_cartoon.image(img_cartoon)
     st.sidebar.markdown("\n")
     st.sidebar.download_button("Download cartoonified image", convert_image(img_cartoon), "img_cartoon.png", "image/png")
 
-col1, col2, col3 = st.columns(3)
+col_orig, col2_no_bg, col_edges, col_cartoon  = st.columns(4)
 my_upload = st.sidebar.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
 
 if my_upload is not None:
