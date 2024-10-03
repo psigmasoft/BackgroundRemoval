@@ -8,12 +8,6 @@ import base64
 import requests
 import time
 
-##################
-# NOTES:
-# To deploy for public access: https://docs.streamlit.io/deploy/tutorials
-# Free Amazon EC2 instance: https://towardsdatascience.com/how-to-deploy-a-streamlit-app-using-an-amazon-free-ec2-instance-416a41f69dc3?
-##################
-
 st.set_page_config(layout="wide", page_title="Image Background Remover")
 
 st.write("## Cartoonify your favourite Lioness")
