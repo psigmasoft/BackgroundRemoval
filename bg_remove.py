@@ -6,6 +6,7 @@ from PIL import Image
 from io import BytesIO
 import base64
 import requests
+import time
 
 ##################
 # NOTES:
@@ -123,31 +124,57 @@ def cartoonify_image_cv2_edges(img):
 
 #     return img_cartoon
 
+def make_transparent(img):
+    # Ensure the image is a numpy array
+    if not isinstance(img, np.ndarray):
+        img = np.array(img)
+    
+    # Convert to RGBA
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGRA)
+    
+    # Set white pixels to be transparent
+    img[np.all(img == [255, 255, 255, 255], axis=-1)] = [255, 255, 255, 0]
+    
+    return img
+
 def process_image(upload):
     image = Image.open(upload)
     col_orig.write("Original Image :camera:")
     col_orig.image(image)
 
+    time_remove_bg_start = time.time()
     img_no_bg = remove(image)
-    col2_no_bg.write("Background removed :wrench:")
-    col2_no_bg.image(img_no_bg)
+    time_remove_bg_end = time.time()
+    st.write(f"Time taken to remove background: {time_remove_bg_end - time_remove_bg_start} seconds")
+
+    col_no_bg.write("Background removed :wrench:")
+    col_no_bg.image(img_no_bg)
     st.sidebar.markdown("\n")
     st.sidebar.download_button("Download fixed image", convert_image(img_no_bg), "img_no_bg.png", "image/png")
 
+    time_cartoonify_edges_start = time.time()
     img_edges = cartoonify_image_cv2_edges(img_no_bg)
-    col_edges.write("Edges :art:")
+    time_cartoonify_edges_end = time.time()
+    st.write(f"Time taken to cartoonify edges: {time_cartoonify_edges_end - time_cartoonify_edges_start} seconds")
+
+    col_edges.write("Drawing :art:")
     col_edges.image(img_edges)
     st.sidebar.markdown("\n")
-    st.sidebar.download_button("Download edges image", convert_image(img_edges), "img_edges.png", "image/png")
+    st.sidebar.download_button("Download edges image", convert_image(img_edges), "img_edges.png", "image/png")  
 
-    # img_cartoon = cartoonify_image_edges_to_toon(img_no_bg, img_edges)
-    # col_cartoon.write("Cartoonified Image :art:")
-    # col_cartoon.image(img_cartoon)
-    # st.sidebar.markdown("\n")
-    # st.sidebar.download_button("Download cartoonified image", convert_image(img_cartoon), "img_cartoon.png", "image/png")
+    img_transparent = make_transparent(img_edges)
+
+    col_cartoon.write("Transparent Image :art:")
+    col_cartoon.markdown('<div class="transparent-bg">', unsafe_allow_html=True)
+    col_cartoon.image(img_transparent, use_column_width=True)
+    col_cartoon.markdown('</div>', unsafe_allow_html=True)
+    st.sidebar.markdown("\n")
+    st.sidebar.download_button("Download transparent image", convert_image(img_transparent), "img_transparent.png", "image/png")
+
+
 
 # Columns for the images
-col_orig, col2_no_bg, col_edges, col_cartoon  = st.columns(4)
+col_orig, col_no_bg, col_edges, col_cartoon  = st.columns(4)
 
 # Sliders to adjust the cartoonify effect
 slider_blur = st.sidebar.slider("Blur", 1, 11, 7)
@@ -170,15 +197,22 @@ col_cartoon.write(f"Block Size: {slider_block_size}")
 # slider_sigmaColor = st.sidebar.slider("sigmaColor", 1, 255, 75)
 # slider_sigmaSpace = st.sidebar.slider("sigmaSpace", 1, 255, 75)
 
-my_upload = st.sidebar.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+with col_orig:
+    my_upload_orig = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
 
-if my_upload is not None:
-    if my_upload.size > MAX_FILE_SIZE:
+with col_no_bg:
+    my_upload_no_bg = st.file_uploader("Upload an image (BG already removed)", type=["png", "jpg", "jpeg"])
+
+with col_edges:
+    my_upload_drawing = st.file_uploader("Upload an drawing", type=["png", "jpg", "jpeg"])
+
+if my_upload_orig is not None:
+    if my_upload_orig.size > MAX_FILE_SIZE:
         st.error("The uploaded file is too large. Please upload an image smaller than 5MB.")
     else:
-        process_image(upload=my_upload)
+        process_image(upload=my_upload_orig)
 else:
-    process_image("./zebra.jpg")
+    process_image("./images/players/ellatoone/et-action.png")
 
 
 
